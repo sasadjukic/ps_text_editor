@@ -1,0 +1,26 @@
+
+QMainWindow {
+    background-color: #1e1e1e;
+}
+QPlainTextEdit {
+    color: #dddddd;
+    background-color: #1e1e1e;
+    border: none;
+    font-family: Consolas, monospace;
+    font-size: 14px;
+}
+QToolBar {
+    background: #252526;
+    spacing: 8px;
+    padding: 4px;
+}
+QToolButton {
+    color: #cccccc;
+    padding: 6px 10px;
+    background: #2d2d2d;
+    border-radius: 6px;
+}
+QToolButton:hover {
+    background: #3a3a3a;
+}
+
