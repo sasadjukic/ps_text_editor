@@ -3,8 +3,9 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QPlainTextEdit, QFileDialog, QMessageBox, QToolBar,
     QToolButton, QMenu
 )
-from PySide6.QtGui import QAction, QKeySequence
+from PySide6.QtGui import QAction, QKeySequence, QIcon
 from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QApplication, QStyle
 
 
 class TextEditor(QMainWindow):
@@ -24,25 +25,40 @@ class TextEditor(QMainWindow):
         self.current_file = None
 
     def create_actions(self):
-    # Open File
+        # New File
+        self.new_action = QAction("New", self)
+        self.new_action.setShortcut(QKeySequence.New)  # Ctrl+N
+        self.new_action.triggered.connect(self.new_file)
+        self.new_action.setStatusTip("Create a new document")
+        self.new_action.setToolTip("New (Ctrl+N)")
+
+        # Open File
         self.open_action = QAction("Open...", self)
         self.open_action.setShortcut(QKeySequence.Open)  # Ctrl+O
         self.open_action.triggered.connect(self.open_file)
+        self.open_action.setStatusTip("Open an existing file")
+        self.open_action.setToolTip("Open (Ctrl+O)")
 
         # Save File
         self.save_action = QAction("Save", self)
         self.save_action.setShortcut(QKeySequence.Save)  # Ctrl+S
         self.save_action.triggered.connect(self.save_file)
+        self.save_action.setStatusTip("Save the current document")
+        self.save_action.setToolTip("Save (Ctrl+S)")
 
         # Save As
         self.save_as_action = QAction("Save As...", self)
         self.save_as_action.setShortcut(QKeySequence.SaveAs)  # Ctrl+Shift+S
         self.save_as_action.triggered.connect(self.save_file_as)
+        self.save_as_action.setStatusTip("Save the current document under a new name")
+        self.save_as_action.setToolTip("Save As (Ctrl+Shift+S)")
 
         # Close File
         self.close_action = QAction("Close", self)
         self.close_action.setShortcut(QKeySequence.Close)  # Ctrl+W
         self.close_action.triggered.connect(self.close_file)
+        self.close_action.setStatusTip("Close the current document")
+        self.close_action.setToolTip("Close (Ctrl+W)")
 
         # --- Edit actions ---
         # We'll track the last edit-related action so "Repeat" can re-run it
@@ -81,16 +97,33 @@ class TextEditor(QMainWindow):
         self.undo_action.setEnabled(False)
         self.redo_action.setEnabled(False)
 
+    def _load_icon(self, theme_name, fallback):
+        icon = QIcon.fromTheme(theme_name)
+        if not icon or icon.isNull():
+            return QApplication.style().standardIcon(fallback)
+        return icon
+
     # We no longer create a top menu bar; the File menu is a drop-down on the toolbar
 
     def create_toolbar(self):
         toolbar = QToolBar()
         toolbar.setMovable(False)
         self.addToolBar(toolbar)
-        # Add quick toolbar actions (Open/Save/SaveAs/Close) as buttons
+        # Add quick toolbar actions: New, Open, Save, Close in this order
+        # Set icons if available
+        # Helper to retrieve themed or fallback icons
+        # Use the shared icon loader
+        def _icon(theme_name, fallback):
+            return self._load_icon(theme_name, fallback)
+
+        self.new_action.setIcon(_icon("document-new", QStyle.SP_FileIcon))
+        self.open_action.setIcon(_icon("document-open", QStyle.SP_DialogOpenButton))
+        self.save_action.setIcon(_icon("document-save", QStyle.SP_DialogSaveButton))
+        self.close_action.setIcon(_icon("window-close", QStyle.SP_DialogCloseButton))
+
+        toolbar.addAction(self.new_action)
         toolbar.addAction(self.open_action)
         toolbar.addAction(self.save_action)
-        toolbar.addAction(self.save_as_action)
         toolbar.addAction(self.close_action)
 
         # Connect editor signals to enable/disable actions based on context
@@ -118,14 +151,24 @@ class TextEditor(QMainWindow):
         menubar = self.menuBar()
         # File menu
         file_menu = menubar.addMenu("File")
+        file_menu.addAction(self.new_action)
         file_menu.addAction(self.open_action)
         file_menu.addAction(self.save_action)
+        # add Save As with an icon if available
+        self.save_as_action.setIcon(self._load_icon("document-save-as", QStyle.SP_DialogSaveButton))
         file_menu.addAction(self.save_as_action)
         file_menu.addSeparator()
         file_menu.addAction(self.close_action)
 
         # Edit menu
         edit_menu = menubar.addMenu("Edit")
+        # add icons to edit menu actions
+        self.copy_action.setIcon(self._load_icon("edit-copy", QStyle.SP_DialogOpenButton))
+        self.cut_action.setIcon(self._load_icon("edit-cut", QStyle.SP_DialogOpenButton))
+        self.paste_action.setIcon(self._load_icon("edit-paste", QStyle.SP_DialogOpenButton))
+        self.undo_action.setIcon(self._load_icon("edit-undo", QStyle.SP_ArrowBack))
+        self.redo_action.setIcon(self._load_icon("edit-redo", QStyle.SP_ArrowForward))
+        self.repeat_action.setIcon(self._load_icon("view-refresh", QStyle.SP_BrowserReload))
         edit_menu.addAction(self.copy_action)
         edit_menu.addAction(self.paste_action)
         edit_menu.addAction(self.cut_action)
@@ -204,6 +247,11 @@ class TextEditor(QMainWindow):
         self.save_file()
 
     def close_file(self):
+        self.editor.clear()
+        self.current_file = None
+
+    def new_file(self):
+        # Clear the editor to create a new document
         self.editor.clear()
         self.current_file = None
 
