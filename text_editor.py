@@ -1,11 +1,11 @@
 import sys
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QPlainTextEdit, QFileDialog, QMessageBox, QToolBar,
-    QToolButton, QMenu
+    QToolButton, QMenu, QWidget
 )
-from PySide6.QtGui import QAction, QKeySequence, QIcon
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QStyle
+from PySide6.QtGui import QAction, QKeySequence, QIcon, QPainter, QColor, QFont, QTextFormat
+from PySide6.QtCore import Qt, QRect, QSize
+from PySide6.QtWidgets import QApplication, QStyle, QTextEdit
 
 
 class TextEditor(QMainWindow):
@@ -15,7 +15,8 @@ class TextEditor(QMainWindow):
         self.setWindowTitle("My Modern Text Editor")
         self.setGeometry(200, 100, 900, 600)
 
-        self.editor = QPlainTextEdit()
+        # Use a CodeEditor (QPlainTextEdit subclass) that supports line numbers
+        self.editor = CodeEditor()
         self.setCentralWidget(self.editor)
 
         # create actions first so toolbar and menubar can reuse them
@@ -178,7 +179,7 @@ class TextEditor(QMainWindow):
         edit_menu.addSeparator()
         edit_menu.addAction(self.repeat_action)
 
-    # --- Edit action handlers ---
+    # --- Edit action handlers (TextEditor forwards to the editor widget) ---
     def _on_copy(self):
         self.editor.copy()
         self._last_edit_action = "copy"
@@ -200,7 +201,6 @@ class TextEditor(QMainWindow):
         self._last_edit_action = "redo"
 
     def _on_repeat(self):
-        # Re-run the last edit action when possible
         action = self._last_edit_action
         if not action:
             return
@@ -214,8 +214,8 @@ class TextEditor(QMainWindow):
             self.editor.undo()
         elif action == "redo":
             self.editor.redo()
-        # Keep last action as repeat-able
 
+    # --- File operations ---
     def open_file(self):
         path, _ = QFileDialog.getOpenFileName(self, "Open File", "", "Text Files (*.txt)")
         if path:
@@ -251,9 +251,102 @@ class TextEditor(QMainWindow):
         self.current_file = None
 
     def new_file(self):
-        # Clear the editor to create a new document
         self.editor.clear()
         self.current_file = None
+
+
+class LineNumberArea(QWidget):
+    def __init__(self, editor):
+        super().__init__(editor)
+        self._editor = editor
+
+    def sizeHint(self):
+        return QSize(self._editor.lineNumberAreaWidth(), 0)
+
+    def paintEvent(self, event):
+        self._editor.lineNumberAreaPaintEvent(event)
+
+
+from PySide6.QtGui import QPainter, QColor, QFont
+from PySide6.QtCore import QRect, QSize
+
+
+class CodeEditor(QPlainTextEdit):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.lineNumberArea = LineNumberArea(self)
+
+        self.blockCountChanged.connect(self.updateLineNumberAreaWidth)
+        self.updateRequest.connect(self.updateLineNumberArea)
+        self.cursorPositionChanged.connect(self.highlightCurrentLine)
+
+        self.updateLineNumberAreaWidth(0)
+        self.highlightCurrentLine()
+
+    def lineNumberAreaWidth(self):
+        # Calculate space needed for line numbers
+        digits = len(str(max(1, self.blockCount())))
+        space = self.fontMetrics().horizontalAdvance('9') * digits + 12
+        return space
+
+    def updateLineNumberAreaWidth(self, _):
+        self.setViewportMargins(self.lineNumberAreaWidth(), 0, 0, 0)
+
+    def updateLineNumberArea(self, rect, dy):
+        if dy:
+            self.lineNumberArea.scroll(0, dy)
+        else:
+            self.lineNumberArea.update(0, rect.y(), self.lineNumberArea.width(), rect.height())
+
+        if rect.contains(self.viewport().rect()):
+            self.updateLineNumberAreaWidth(0)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+
+        cr = self.contentsRect()
+        self.lineNumberArea.setGeometry(QRect(cr.left(), cr.top(), self.lineNumberAreaWidth(), cr.height()))
+
+    def highlightCurrentLine(self):
+        extraSelections = []
+
+        if not self.isReadOnly():
+            selection = QTextEdit.ExtraSelection()
+            lineColor = QColor(Qt.yellow).lighter(160)
+            selection.format.setBackground(lineColor)
+            selection.format.setProperty(QTextFormat.FullWidthSelection, True)
+            selection.cursor = self.textCursor()
+            selection.cursor.clearSelection()
+            extraSelections.append(selection)
+
+        self.setExtraSelections(extraSelections)
+
+    def lineNumberAreaPaintEvent(self, event):
+        painter = QPainter(self.lineNumberArea)
+        painter.fillRect(event.rect(), QColor(240, 240, 240))
+
+        block = self.firstVisibleBlock()
+        blockNumber = block.blockNumber()
+        top = int(self.blockBoundingGeometry(block).translated(self.contentOffset()).top())
+        bottom = top + int(self.blockBoundingRect(block).height())
+
+        height = self.fontMetrics().height()
+
+        while block.isValid() and top <= event.rect().bottom():
+            if block.isVisible() and bottom >= event.rect().top():
+                number = str(blockNumber + 1)
+                painter.setPen(Qt.black)
+                painter.drawText(0, top, self.lineNumberArea.width() - 4, height, Qt.AlignRight, number)
+
+            block = block.next()
+            top = bottom
+            bottom = top + int(self.blockBoundingRect(block).height())
+            blockNumber += 1
+
+
+    # Note: file operation methods (open/save/close/new) and edit action handlers
+    # are implemented on the TextEditor container and forward to this widget.
 
 def load_stylesheet(app, path):
     with open(path, "r") as f:
