@@ -17,8 +17,9 @@ class TextEditor(QMainWindow):
         self.editor = QPlainTextEdit()
         self.setCentralWidget(self.editor)
 
-        # create actions first so toolbar can reuse them
+        # create actions first so toolbar and menubar can reuse them
         self.create_actions()
+        self.create_menubar()
         self.create_toolbar()
         self.current_file = None
 
@@ -86,35 +87,11 @@ class TextEditor(QMainWindow):
         toolbar = QToolBar()
         toolbar.setMovable(False)
         self.addToolBar(toolbar)
-        # Add a File drop-down button to the toolbar using the actions created in create_actions
-        file_button = QToolButton(self)
-        file_button.setText("File")
-        file_menu = QMenu(self)
-        file_menu.addAction(self.open_action)
-        file_menu.addAction(self.save_action)
-        file_menu.addAction(self.save_as_action)
-        file_menu.addSeparator()
-        file_menu.addAction(self.close_action)
-        file_button.setMenu(file_menu)
-        # Make button show the menu immediately on click
-        file_button.setPopupMode(QToolButton.InstantPopup)
-        toolbar.addWidget(file_button)
-
-        # Add an Edit drop-down button next to File
-        edit_button = QToolButton(self)
-        edit_button.setText("Edit")
-        edit_menu = QMenu(self)
-        edit_menu.addAction(self.copy_action)
-        edit_menu.addAction(self.paste_action)
-        edit_menu.addAction(self.cut_action)
-        edit_menu.addSeparator()
-        edit_menu.addAction(self.undo_action)
-        edit_menu.addAction(self.redo_action)
-        edit_menu.addSeparator()
-        edit_menu.addAction(self.repeat_action)
-        edit_button.setMenu(edit_menu)
-        edit_button.setPopupMode(QToolButton.InstantPopup)
-        toolbar.addWidget(edit_button)
+        # Add quick toolbar actions (Open/Save/SaveAs/Close) as buttons
+        toolbar.addAction(self.open_action)
+        toolbar.addAction(self.save_action)
+        toolbar.addAction(self.save_as_action)
+        toolbar.addAction(self.close_action)
 
         # Connect editor signals to enable/disable actions based on context
         # copyAvailable(bool) is emitted when a selection is present
@@ -135,6 +112,28 @@ class TextEditor(QMainWindow):
         self.cut_action.setEnabled(bool(self.editor.textCursor().hasSelection()))
         self.undo_action.setEnabled(doc.isUndoAvailable())
         self.redo_action.setEnabled(doc.isRedoAvailable())
+
+    def create_menubar(self):
+        """Create a proper menubar with File and Edit menus."""
+        menubar = self.menuBar()
+        # File menu
+        file_menu = menubar.addMenu("File")
+        file_menu.addAction(self.open_action)
+        file_menu.addAction(self.save_action)
+        file_menu.addAction(self.save_as_action)
+        file_menu.addSeparator()
+        file_menu.addAction(self.close_action)
+
+        # Edit menu
+        edit_menu = menubar.addMenu("Edit")
+        edit_menu.addAction(self.copy_action)
+        edit_menu.addAction(self.paste_action)
+        edit_menu.addAction(self.cut_action)
+        edit_menu.addSeparator()
+        edit_menu.addAction(self.undo_action)
+        edit_menu.addAction(self.redo_action)
+        edit_menu.addSeparator()
+        edit_menu.addAction(self.repeat_action)
 
     # --- Edit action handlers ---
     def _on_copy(self):
