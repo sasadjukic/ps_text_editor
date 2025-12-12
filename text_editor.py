@@ -1,9 +1,10 @@
 import sys
+import re
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QPlainTextEdit, QFileDialog, QMessageBox, QToolBar,
     QToolButton, QMenu, QWidget
 )
-from PySide6.QtGui import QAction, QKeySequence, QIcon, QPainter, QColor, QFont, QTextFormat
+from PySide6.QtGui import QAction, QKeySequence, QIcon, QPainter, QColor, QFont, QTextFormat, QPalette
 from PySide6.QtCore import Qt, QRect, QSize
 from PySide6.QtWidgets import QApplication, QStyle, QTextEdit
 
@@ -293,6 +294,26 @@ class CodeEditor(QPlainTextEdit):
     def updateLineNumberAreaWidth(self, _):
         self.setViewportMargins(self.lineNumberAreaWidth(), 0, 0, 0)
 
+    def _get_editor_background_color(self):
+        ss = QApplication.instance().styleSheet() or ""
+        m = re.search(r"QPlainTextEdit\s*\{[^}]*background-color\s*:\s*([^;]+);", ss)
+        if m:
+            try:
+                return QColor(m.group(1).strip())
+            except Exception:
+                pass
+        return self.palette().color(QPalette.Base)
+
+    def _get_editor_text_color(self):
+        ss = QApplication.instance().styleSheet() or ""
+        m = re.search(r"QPlainTextEdit\s*\{[^}]*(?<!-)color\s*:\s*([^;]+);", ss)
+        if m:
+            try:
+                return QColor(m.group(1).strip())
+            except Exception:
+                pass
+        return self.palette().color(QPalette.Text)
+
     def updateLineNumberArea(self, rect, dy):
         if dy:
             self.lineNumberArea.scroll(0, dy)
@@ -323,8 +344,11 @@ class CodeEditor(QPlainTextEdit):
         self.setExtraSelections(extraSelections)
 
     def lineNumberAreaPaintEvent(self, event):
+        # Determine editor background and text color before creating the painter
+        bg_color = self._get_editor_background_color()
+        text_color = self._get_editor_text_color()
         painter = QPainter(self.lineNumberArea)
-        painter.fillRect(event.rect(), QColor(240, 240, 240))
+        painter.fillRect(event.rect(), bg_color)
 
         block = self.firstVisibleBlock()
         blockNumber = block.blockNumber()
@@ -336,7 +360,8 @@ class CodeEditor(QPlainTextEdit):
         while block.isValid() and top <= event.rect().bottom():
             if block.isVisible() and bottom >= event.rect().top():
                 number = str(blockNumber + 1)
-                painter.setPen(Qt.black)
+                # Use the editor's text color so numbers contrast correctly
+                painter.setPen(text_color)
                 painter.drawText(0, top, self.lineNumberArea.width() - 4, height, Qt.AlignRight, number)
 
             block = block.next()
