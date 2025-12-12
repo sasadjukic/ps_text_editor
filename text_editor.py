@@ -330,18 +330,10 @@ class CodeEditor(QPlainTextEdit):
         self.lineNumberArea.setGeometry(QRect(cr.left(), cr.top(), self.lineNumberAreaWidth(), cr.height()))
 
     def highlightCurrentLine(self):
-        extraSelections = []
-
-        if not self.isReadOnly():
-            selection = QTextEdit.ExtraSelection()
-            lineColor = QColor(Qt.yellow).lighter(160)
-            selection.format.setBackground(lineColor)
-            selection.format.setProperty(QTextFormat.FullWidthSelection, True)
-            selection.cursor = self.textCursor()
-            selection.cursor.clearSelection()
-            extraSelections.append(selection)
-
-        self.setExtraSelections(extraSelections)
+        # Removing the yellow highlight to avoid low-contrast issues with dark themes.
+        # We intentionally do not set any extra selections here so the current line
+        # remains unhighlighted and text visibility is preserved.
+        self.setExtraSelections([])
 
     def lineNumberAreaPaintEvent(self, event):
         # Determine editor background and text color before creating the painter
