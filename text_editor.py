@@ -13,7 +13,6 @@ class TextEditor(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle("My Modern Text Editor")
         self.setGeometry(200, 100, 900, 600)
 
         # Use a CodeEditor (QPlainTextEdit subclass) that supports line numbers
@@ -25,6 +24,8 @@ class TextEditor(QMainWindow):
         self.create_menubar()
         self.create_toolbar()
         self.current_file = None
+        self.untitled_count = 1
+        self.update_window_title()
 
     def create_actions(self):
         # New File
@@ -224,6 +225,7 @@ class TextEditor(QMainWindow):
                 with open(path, "r", encoding="utf-8") as file:
                     self.editor.setPlainText(file.read())
                 self.current_file = path
+                self.update_window_title()
             except Exception as e:
                 QMessageBox.critical(self, "Error", str(e))
 
@@ -237,6 +239,7 @@ class TextEditor(QMainWindow):
         try:
             with open(self.current_file, "w", encoding="utf-8") as file:
                 file.write(self.editor.toPlainText())
+            self.update_window_title()
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
 
@@ -246,14 +249,29 @@ class TextEditor(QMainWindow):
             return
         self.current_file = path
         self.save_file()
+        self.update_window_title()
 
     def close_file(self):
         self.editor.clear()
         self.current_file = None
+        self.untitled_count += 1
+        self.update_window_title()
 
     def new_file(self):
         self.editor.clear()
         self.current_file = None
+        self.untitled_count += 1
+        self.update_window_title()
+
+    def update_window_title(self):
+        """Update the window title to show document name and editor name."""
+        if self.current_file:
+            import os
+            doc_name = os.path.basename(self.current_file)
+        else:
+            doc_name = f"Untitled {self.untitled_count}"
+        
+        self.setWindowTitle(f"{doc_name} - My Modern Text Editor")
 
 
 class LineNumberArea(QWidget):
