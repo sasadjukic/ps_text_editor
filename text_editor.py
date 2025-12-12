@@ -359,6 +359,9 @@ class CodeEditor(QPlainTextEdit):
         text_color = self._get_editor_text_color()
         painter = QPainter(self.lineNumberArea)
         painter.fillRect(event.rect(), bg_color)
+        
+        # Set the painter font to match the editor's font
+        painter.setFont(self.font())
 
         block = self.firstVisibleBlock()
         blockNumber = block.blockNumber()

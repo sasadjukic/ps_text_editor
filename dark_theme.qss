@@ -7,7 +7,7 @@ QPlainTextEdit {
     background-color: #1e1e1e;
     border: none;
     font-family: Consolas, monospace;
-    font-size: 14px;
+    font-size: 20px;
 }
 QToolBar {
     background: #252526;
