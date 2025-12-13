@@ -123,7 +123,7 @@ class TextEditor(QMainWindow):
         # Make toolbar vertical and dock it to the left area
         toolbar.setOrientation(Qt.Vertical)
         toolbar.setToolButtonStyle(Qt.ToolButtonIconOnly)
-        toolbar.setIconSize(QSize(20, 20))
+        toolbar.setIconSize(QSize(32, 32))
         self.addToolBar(Qt.LeftToolBarArea, toolbar)
         # Add quick toolbar actions: New, Open, Save, Close in this order
         # Set icons if available
