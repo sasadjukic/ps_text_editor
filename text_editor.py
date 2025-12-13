@@ -113,7 +113,11 @@ class TextEditor(QMainWindow):
     def create_toolbar(self):
         toolbar = QToolBar()
         toolbar.setMovable(False)
-        self.addToolBar(toolbar)
+        # Make toolbar vertical and dock it to the left area
+        toolbar.setOrientation(Qt.Vertical)
+        toolbar.setToolButtonStyle(Qt.ToolButtonIconOnly)
+        toolbar.setIconSize(QSize(20, 20))
+        self.addToolBar(Qt.LeftToolBarArea, toolbar)
         # Add quick toolbar actions: New, Open, Save, Close in this order
         # Set icons if available
         # Helper to retrieve themed or fallback icons
