@@ -20,58 +20,108 @@ class SearchWidget(QWidget):
         self.setup_ui()
         
     def setup_ui(self):
-        layout = QHBoxLayout()
-        layout.setContentsMargins(5, 5, 5, 5)
+        # Main vertical layout to hold both rows
+        main_layout = QVBoxLayout()
+        main_layout.setContentsMargins(5, 5, 5, 5)
+        main_layout.setSpacing(5)
+        
+        # First row: Search controls
+        search_layout = QHBoxLayout()
         
         # Search input
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Find...")
         self.search_input.setMinimumWidth(200)
-        layout.addWidget(self.search_input)
+        search_layout.addWidget(self.search_input)
         
         # Match counter label
         self.match_label = QLabel("No matches")
         self.match_label.setMinimumWidth(100)
         self.match_label.setStyleSheet("color: #dddddd;")  # Light text for dark theme visibility
-        layout.addWidget(self.match_label)
+        search_layout.addWidget(self.match_label)
         
         # Previous button
         self.prev_button = QPushButton("◀")
         self.prev_button.setMaximumWidth(40)
         self.prev_button.setToolTip("Previous match (Shift+Enter)")
         self.prev_button.setEnabled(False)
-        layout.addWidget(self.prev_button)
+        search_layout.addWidget(self.prev_button)
         
         # Next button
         self.next_button = QPushButton("▶")
         self.next_button.setMaximumWidth(40)
         self.next_button.setToolTip("Next match (Enter)")
         self.next_button.setEnabled(False)
-        layout.addWidget(self.next_button)
+        search_layout.addWidget(self.next_button)
         
         # Close button
         self.close_button = QPushButton("✕")
         self.close_button.setMaximumWidth(40)
         self.close_button.setToolTip("Close (Esc)")
-        layout.addWidget(self.close_button)
+        search_layout.addWidget(self.close_button)
         
-        layout.addStretch()
-        self.setLayout(layout)
+        search_layout.addStretch()
+        main_layout.addLayout(search_layout)
         
+        # Second row: Replace controls (initially hidden)
+        self.replace_container = QWidget()
+        replace_layout = QHBoxLayout()
+        replace_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Replace input
+        self.replace_input = QLineEdit()
+        self.replace_input.setPlaceholderText("Replace with...")
+        self.replace_input.setMinimumWidth(200)
+        replace_layout.addWidget(self.replace_input)
+        
+        # Replace button
+        self.replace_button = QPushButton("Replace")
+        self.replace_button.setToolTip("Replace current match")
+        self.replace_button.setEnabled(False)
+        replace_layout.addWidget(self.replace_button)
+        
+        # Replace All button
+        self.replace_all_button = QPushButton("Replace All")
+        self.replace_all_button.setToolTip("Replace all matches")
+        self.replace_all_button.setEnabled(False)
+        replace_layout.addWidget(self.replace_all_button)
+        
+        replace_layout.addStretch()
+        self.replace_container.setLayout(replace_layout)
+        self.replace_container.hide()  # Initially hidden
+        main_layout.addWidget(self.replace_container)
+        
+        self.setLayout(main_layout)
+        
+    def show_replace_controls(self, show=True):
+        """Show or hide the replace controls."""
+        if show:
+            self.replace_container.show()
+        else:
+            self.replace_container.hide()
+    
     def update_match_count(self, current, total):
         """Update the match counter display."""
         if total == 0:
             self.match_label.setText("No matches")
             self.prev_button.setEnabled(False)
             self.next_button.setEnabled(False)
+            self.replace_button.setEnabled(False)
+            self.replace_all_button.setEnabled(False)
         else:
             self.match_label.setText(f"{current} of {total} matches")
             self.prev_button.setEnabled(total > 1)
             self.next_button.setEnabled(total > 1)
+            self.replace_button.setEnabled(True)
+            self.replace_all_button.setEnabled(True)
     
     def get_search_text(self):
         """Return the current search text."""
         return self.search_input.text()
+    
+    def get_replace_text(self):
+        """Return the current replace text."""
+        return self.replace_input.text()
     
     def focus_input(self):
         """Set focus to the search input field."""
@@ -113,6 +163,8 @@ class TextEditor(QMainWindow):
         self.search_widget.next_button.clicked.connect(self._next_match)
         self.search_widget.prev_button.clicked.connect(self._previous_match)
         self.search_widget.close_button.clicked.connect(self._close_search)
+        self.search_widget.replace_button.clicked.connect(self._replace_current)
+        self.search_widget.replace_all_button.clicked.connect(self._replace_all)
         
         # Install event filter for Enter/Escape keys in search widget
         self.search_widget.search_input.installEventFilter(self)
@@ -170,6 +222,14 @@ class TextEditor(QMainWindow):
         self.search_action.triggered.connect(self._on_search)
         self.search_action.setStatusTip("Find text in the document")
         self.search_action.setToolTip("Search (Ctrl+F)")
+        
+        # Replace
+        self.replace_action = QAction("Replace", self)
+        self.replace_action.setShortcut(QKeySequence("Ctrl+H"))
+        self.replace_action.triggered.connect(self._on_replace)
+        self.replace_action.setStatusTip("Find and replace text in the document")
+        self.replace_action.setToolTip("Replace (Ctrl+H)")
+
 
         # --- Edit actions ---
         # We'll track the last edit-related action so "Repeat" can re-run it
@@ -295,6 +355,12 @@ class TextEditor(QMainWindow):
         edit_menu.addAction(self.redo_action)
         edit_menu.addSeparator()
         edit_menu.addAction(self.repeat_action)
+        edit_menu.addSeparator()
+        # Add search and replace actions
+        self.search_action.setIcon(self._load_icon("edit-find", QStyle.SP_FileDialogContentsView))
+        self.replace_action.setIcon(self._load_icon("edit-find-replace", QStyle.SP_FileDialogContentsView))
+        edit_menu.addAction(self.search_action)
+        edit_menu.addAction(self.replace_action)
 
     def create_statusbar(self):
         """Create status bar with line/column and word count indicators."""
@@ -337,7 +403,14 @@ class TextEditor(QMainWindow):
         self._status_word.setText(f"Words: {len(words)}")
 
     def _on_search(self):
-        """Show the search widget and focus the input field."""
+        """Show the search widget in find-only mode and focus the input field."""
+        self.search_widget.show_replace_controls(False)
+        self.search_widget.show()
+        self.search_widget.focus_input()
+    
+    def _on_replace(self):
+        """Show the search widget in find-and-replace mode and focus the input field."""
+        self.search_widget.show_replace_controls(True)
         self.search_widget.show()
         self.search_widget.focus_input()
     
@@ -428,6 +501,63 @@ class TextEditor(QMainWindow):
         
         prev_index = (self.current_match_index - 1) % len(self.current_matches)
         self._navigate_to_match(prev_index)
+    
+    def _replace_current(self):
+        """Replace the current match and move to the next one."""
+        if not self.current_matches or self.current_match_index >= len(self.current_matches):
+            return
+        
+        search_text = self.search_widget.get_search_text()
+        replace_text = self.search_widget.get_replace_text()
+        
+        if not search_text:
+            return
+        
+        # Get the current match cursor
+        cursor = self.current_matches[self.current_match_index]
+        
+        # Replace the text
+        cursor.insertText(replace_text)
+        
+        # Refresh the matches list after replacement
+        self.current_matches = self._find_all_matches(search_text)
+        
+        if self.current_matches:
+            # Stay at the same index (which is now the next match)
+            if self.current_match_index >= len(self.current_matches):
+                self.current_match_index = 0
+            self._navigate_to_match(self.current_match_index)
+        else:
+            # No more matches
+            self._clear_search_highlights()
+            self.search_widget.update_match_count(0, 0)
+    
+    def _replace_all(self):
+        """Replace all matches at once."""
+        if not self.current_matches:
+            return
+        
+        search_text = self.search_widget.get_search_text()
+        replace_text = self.search_widget.get_replace_text()
+        
+        if not search_text:
+            return
+        
+        # Count matches before replacing
+        count = len(self.current_matches)
+        
+        # Replace all matches from last to first to maintain cursor positions
+        for cursor in reversed(self.current_matches):
+            cursor.insertText(replace_text)
+        
+        # Clear matches and highlights
+        self.current_matches = []
+        self.current_match_index = 0
+        self._clear_search_highlights()
+        self.search_widget.update_match_count(0, 0)
+        
+        # Show status message
+        self.statusBar().showMessage(f"Replaced {count} occurrence(s)", 3000)
     
     def _close_search(self):
         """Close the search widget and clear highlights."""
