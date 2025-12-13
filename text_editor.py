@@ -1,11 +1,13 @@
 import sys
 import re
+import os
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QPlainTextEdit, QFileDialog, QMessageBox, QToolBar,
     QToolButton, QMenu, QWidget, QLabel, QStatusBar, QInputDialog, QLineEdit,
     QHBoxLayout, QPushButton, QVBoxLayout
 )
-from PySide6.QtGui import QAction, QKeySequence, QIcon, QPainter, QColor, QFont, QTextFormat, QPalette, QTextCursor
+from PySide6.QtGui import QAction, QKeySequence, QIcon, QPainter, QColor, QFont, QTextFormat, QPalette, QTextCursor, QPixmap
+from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtCore import Qt, QRect, QSize
 from PySide6.QtWidgets import QApplication, QStyle, QTextEdit
 
@@ -274,6 +276,44 @@ class TextEditor(QMainWindow):
             return QApplication.style().standardIcon(fallback)
         return icon
 
+    def _load_colored_svg_icon(self, base_name, color=None, size=32):
+        """Load an SVG from the local `icons/` folder and tint it to `color`.
+
+        Falls back to themed/fallback icon if the SVG file is not available or fails to render.
+        """
+        if color is None:
+            # Try to derive a visible color from the editor if available
+            try:
+                color = self.editor._get_editor_text_color().name()
+            except Exception:
+                color = "#ffffff"
+
+        try:
+            icons_dir = os.path.join(os.path.dirname(__file__), "icons")
+            svg_path = os.path.join(icons_dir, f"{base_name}.svg")
+
+            if os.path.exists(svg_path):
+                renderer = QSvgRenderer(svg_path)
+                pix = QPixmap(size, size)
+                pix.fill(Qt.transparent)
+
+                painter = QPainter(pix)
+                # Render the SVG scaled to the pixmap
+                renderer.render(painter, QRect(0, 0, size, size))
+
+                # Tint the rendered pixmap by using SourceIn composition
+                painter.setCompositionMode(QPainter.CompositionMode_SourceIn)
+                painter.fillRect(pix.rect(), QColor(color))
+                painter.end()
+
+                return QIcon(pix)
+        except Exception:
+            # Fall through to fallback
+            pass
+
+        # Fallback to theme/fallback icon if something goes wrong
+        return self._load_icon(base_name, QStyle.SP_FileIcon)
+
     # We no longer create a top menu bar; the File menu is a drop-down on the toolbar
 
     def create_toolbar(self):
@@ -291,17 +331,18 @@ class TextEditor(QMainWindow):
         def _icon(theme_name, fallback):
             return self._load_icon(theme_name, fallback)
 
-        self.new_action.setIcon(_icon("document-new", QStyle.SP_FileIcon))
-        self.open_action.setIcon(_icon("document-open", QStyle.SP_DialogOpenButton))
-        self.save_action.setIcon(_icon("document-save", QStyle.SP_DialogSaveButton))
-        self.close_action.setIcon(_icon("window-close", QStyle.SP_DialogCloseButton))
+        # Prefer local SVG icons (tinted to match the editor text color) if available
+        self.new_action.setIcon(self._load_colored_svg_icon("new"))
+        self.open_action.setIcon(self._load_colored_svg_icon("open"))
+        self.save_action.setIcon(self._load_colored_svg_icon("save"))
+        self.close_action.setIcon(self._load_colored_svg_icon("close"))
 
         toolbar.addAction(self.new_action)
         toolbar.addAction(self.open_action)
         toolbar.addAction(self.save_action)
         toolbar.addAction(self.close_action)
-        # Add Search icon below Close
-        self.search_action.setIcon(self._load_icon("edit-find", QStyle.SP_FileDialogContentsView))
+        # Add Search icon below Close (use local svg if present)
+        self.search_action.setIcon(self._load_colored_svg_icon("search"))
         toolbar.addAction(self.search_action)
 
         # Connect editor signals to enable/disable actions based on context
