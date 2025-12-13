@@ -32,6 +32,7 @@ class SearchWidget(QWidget):
         # Match counter label
         self.match_label = QLabel("No matches")
         self.match_label.setMinimumWidth(100)
+        self.match_label.setStyleSheet("color: #dddddd;")  # Light text for dark theme visibility
         layout.addWidget(self.match_label)
         
         # Previous button
