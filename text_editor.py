@@ -2,7 +2,7 @@ import sys
 import re
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QPlainTextEdit, QFileDialog, QMessageBox, QToolBar,
-    QToolButton, QMenu, QWidget
+    QToolButton, QMenu, QWidget, QLabel, QStatusBar
 )
 from PySide6.QtGui import QAction, QKeySequence, QIcon, QPainter, QColor, QFont, QTextFormat, QPalette
 from PySide6.QtCore import Qt, QRect, QSize
@@ -23,6 +23,8 @@ class TextEditor(QMainWindow):
         self.create_actions()
         self.create_menubar()
         self.create_toolbar()
+        # create status bar showing Ln/Col and word count
+        self.create_statusbar()
         self.current_file = None
         self.untitled_count = 1
         self.update_window_title()
@@ -180,6 +182,39 @@ class TextEditor(QMainWindow):
         edit_menu.addAction(self.redo_action)
         edit_menu.addSeparator()
         edit_menu.addAction(self.repeat_action)
+
+    def create_statusbar(self):
+        """Create status bar with line/column and word count indicators."""
+        sb = self.statusBar()
+        # Left part can show messages; we add two permanent widgets to the right
+        self._status_word = QLabel("Words: 0")
+        self._status_pos = QLabel("Ln 1, Col 1")
+        # Slight padding
+        self._status_word.setMargin(4)
+        self._status_pos.setMargin(8)
+        sb.addPermanentWidget(self._status_word)
+        sb.addPermanentWidget(self._status_pos)
+
+        # Connect editor signals to update status
+        self.editor.cursorPositionChanged.connect(self._update_cursor_position)
+        self.editor.textChanged.connect(self._update_word_count)
+
+        # Initialize values
+        self._update_cursor_position()
+        self._update_word_count()
+
+    def _update_cursor_position(self):
+        cursor = self.editor.textCursor()
+        # blockNumber() is zero-based
+        ln = cursor.blockNumber() + 1
+        col = cursor.positionInBlock() + 1
+        self._status_pos.setText(f"Ln {ln}, Col {col}")
+
+    def _update_word_count(self):
+        text = self.editor.toPlainText()
+        # count words using word boundaries
+        words = re.findall(r"\b\w+\b", text)
+        self._status_word.setText(f"Words: {len(words)}")
 
     # --- Edit action handlers (TextEditor forwards to the editor widget) ---
     def _on_copy(self):
