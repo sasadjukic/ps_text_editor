@@ -192,6 +192,13 @@ class TextEditor(QMainWindow):
         # Slight padding
         self._status_word.setMargin(4)
         self._status_pos.setMargin(8)
+        # Use editor text color for status labels so they are visible in dark theme
+        try:
+            status_color = self.editor._get_editor_text_color().name()
+        except Exception:
+            status_color = "#ffffff"
+        self._status_word.setStyleSheet(f"color: {status_color};")
+        self._status_pos.setStyleSheet(f"color: {status_color};")
         sb.addPermanentWidget(self._status_word)
         sb.addPermanentWidget(self._status_pos)
 
