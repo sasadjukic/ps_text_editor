@@ -2,7 +2,7 @@ import sys
 import re
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QPlainTextEdit, QFileDialog, QMessageBox, QToolBar,
-    QToolButton, QMenu, QWidget, QLabel, QStatusBar
+    QToolButton, QMenu, QWidget, QLabel, QStatusBar, QInputDialog
 )
 from PySide6.QtGui import QAction, QKeySequence, QIcon, QPainter, QColor, QFont, QTextFormat, QPalette
 from PySide6.QtCore import Qt, QRect, QSize
@@ -64,6 +64,13 @@ class TextEditor(QMainWindow):
         self.close_action.triggered.connect(self.close_file)
         self.close_action.setStatusTip("Close the current document")
         self.close_action.setToolTip("Close (Ctrl+W)")
+
+        # Search
+        self.search_action = QAction("Search", self)
+        self.search_action.setShortcut(QKeySequence("Ctrl+F"))
+        self.search_action.triggered.connect(self._on_search)
+        self.search_action.setStatusTip("Find text in the document")
+        self.search_action.setToolTip("Search (Ctrl+F)")
 
         # --- Edit actions ---
         # We'll track the last edit-related action so "Repeat" can re-run it
@@ -134,6 +141,9 @@ class TextEditor(QMainWindow):
         toolbar.addAction(self.open_action)
         toolbar.addAction(self.save_action)
         toolbar.addAction(self.close_action)
+        # Add Search icon below Close
+        self.search_action.setIcon(self._load_icon("edit-find", QStyle.SP_FileDialogContentsView))
+        toolbar.addAction(self.search_action)
 
         # Connect editor signals to enable/disable actions based on context
         # copyAvailable(bool) is emitted when a selection is present
@@ -226,6 +236,15 @@ class TextEditor(QMainWindow):
         # count words using word boundaries
         words = re.findall(r"\b\w+\b", text)
         self._status_word.setText(f"Words: {len(words)}")
+
+    def _on_search(self):
+        # Prompt the user for a search string and find it in the document
+        text, ok = QInputDialog.getText(self, "Find", "Find:")
+        if not ok or not text:
+            return
+        found = self.editor.find(text)
+        if not found:
+            QMessageBox.information(self, "Not found", f"'{text}' was not found.")
 
     # --- Edit action handlers (TextEditor forwards to the editor widget) ---
     def _on_copy(self):
