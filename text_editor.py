@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QAction, QKeySequence, QIcon, QPainter, QColor, QFont, QTextFormat, QPalette, QTextCursor, QPixmap
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtCore import Qt, QRect, QSize
+from PySide6.QtWidgets import QSizePolicy
 from PySide6.QtWidgets import QApplication, QStyle, QTextEdit
 
 
@@ -263,6 +264,16 @@ class TextEditor(QMainWindow):
         self.repeat_action.setShortcut(QKeySequence("Ctrl+Shift+Y"))  # Shift+Ctrl+Y
         self.repeat_action.triggered.connect(self._on_repeat)
 
+        # Extra placeholder actions (icons only, no functionality yet)
+        self.agent_action = QAction("Agent", self)
+        self.agent_action.setEnabled(False)
+
+        self.key_action = QAction("Key", self)
+        self.key_action.setEnabled(False)
+
+        self.settings_action = QAction("Settings", self)
+        self.settings_action.setEnabled(False)
+
         # Initial enable/disable states
         self.copy_action.setEnabled(False)
         self.cut_action.setEnabled(False)
@@ -344,6 +355,20 @@ class TextEditor(QMainWindow):
         # Add Search icon below Close (use local svg if present)
         self.search_action.setIcon(self._load_colored_svg_icon("search"))
         toolbar.addAction(self.search_action)
+
+        # Add a stretch spacer to push the next items to the bottom of the vertical toolbar
+        spacer = QWidget()
+        spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        toolbar.addWidget(spacer)
+
+        # Bottom-only icons (no functionality yet)
+        self.agent_action.setIcon(self._load_colored_svg_icon("agent"))
+        self.key_action.setIcon(self._load_colored_svg_icon("key"))
+        self.settings_action.setIcon(self._load_colored_svg_icon("settings"))
+
+        toolbar.addAction(self.agent_action)
+        toolbar.addAction(self.key_action)
+        toolbar.addAction(self.settings_action)
 
         # Connect editor signals to enable/disable actions based on context
         # copyAvailable(bool) is emitted when a selection is present
